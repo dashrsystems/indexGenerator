@@ -3,262 +3,191 @@ const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const handlebars = require("handlebars");
 const html = require("./html");
-const sql = require("mssql");
-const athleteindex = require("./athlete-index");
 
 export const index = async (event, context) => {
+  // parse the body
+  let body = null;
+  let testingDate = null;
+  let height = null;
+  let weight = null;
+  let wingSpan = null;
+  let dash = null;
+  let proAgility = null;
+  let vertical = null;
+  let dashTimeStamp = null;
+  let proAgilityTimeStamp = null;
+  let verticalTimeStamp = null;
+  let position = null;
+  let sport = null;
+  let birthDate = null;
+  let sex = null;
+  let firstName = null;
+  let middleName = null;
+  let lastName = null;
+  let reach = null;
+  let tenIndex = null;
+  let agilityIndex = null;
+  let vertIndex = null;
+  let overallIndex = null;
   try {
-    let config = {
-      user: "admin",
-      password: "Gators8290!",
-      server: "dashrdb.chsbdpa8gsrd.us-east-1.rds.amazonaws.com",
-      database: "DashrBackend"
-    };
+    body = JSON.parse(Buffer.from(event.body, "base64").toString());
+    testingDate = new Date(body.testingDate);
+    height = body.height;
+    weight = body.weight;
+    wingSpan = body.wingSpan;
+    dash = body.dash;
+    reach = body.reach;
+    sex = body.sex.toLowerCase();
+    proAgility = body.proAgility;
+    vertical = body.vertical;
+    dashTimeStamp = new Date(body.dashTimeStamp);
+    proAgilityTimeStamp = new Date(body.proAgilityTimeStamp);
+    verticalTimeStamp = new Date(body.verticalTimeStamp);
+    birthDate = new Date(body.birthDate);
+    firstName = body.firstName;
+    middleName = body.middleName;
+    lastName = body.lastName;
+    tenIndex = body.dashIndex;
+    agilityIndex = body.proAgilityIndex;
+    vertIndex = body.verticalJumpIndex;
+    overallIndex = body.totalIndex;
 
-    let athleteID = event.pathParameters.athleteID;
-
-    // connect to DB
-    await sql.connect(config);
-
-    // athlete query
-    let athleteQuery = await sql.query`SELECT * FROM Athletes WHERE Id = ${athleteID}`;
-
-    // if there are no athletes, then user has given invalid ID
-    if (athleteQuery.recordset.length === 0) {
-      sql.close();
-      return {
-        statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify({
-          message: "You have entered an invalid athleteID"
-        })
-      };
+    if (
+      testingDate == null ||
+      height == null ||
+      weight == null ||
+      wingSpan == null ||
+      dash == null ||
+      proAgility == null ||
+      vertical == null ||
+      dashTimeStamp == null ||
+      proAgilityTimeStamp == null ||
+      verticalTimeStamp == null ||
+      birthDate == null ||
+      sex == null ||
+      firstName == null ||
+      middleName == null ||
+      lastName == null ||
+      reach == null ||
+      tenIndex == null ||
+      agilityIndex == null ||
+      vertIndex == null ||
+      overallIndex == null
+    ) {
+      throw "not enough parameters";
     }
-
-    let errorMessage = "";
-
-    // extract the required athlete parameters for the report
-    let athleteQueryResult = athleteQuery.recordset[0];
-    let athlete = {};
-    athlete["name"] = `${athleteQueryResult.FirstName} ${
-      athleteQueryResult.LastName
-    }`;
-    athlete["weight"] = athleteQueryResult.Weight;
-    athlete["sport"] = athleteQueryResult.Sport;
-    athlete["position"] = athleteQueryResult.Position;
-    athlete["height"] = athleteQueryResult.Height;
-    athlete["wingSpan"] = athleteQueryResult.WingSpan;
-    athlete["reach"] = athleteQueryResult.Reach;
-    athlete["birthDate"] = athleteQueryResult.BirthDate;
-    athlete["sex"] = athleteQueryResult.Sex;
-
-    // check to see if the athlete has every property
-    for (var property in athlete) {
-      if (athlete.hasOwnProperty(property)) {
-        if (!athlete[property]) {
-          errorMessage = `This athlete does not have a ${property} listed`;
-          sql.close();
-          return {
-            statusCode: 400,
-            headers: {
-              "Access-Control-Allow-Origin": "*"
-            },
-            body: JSON.stringify({
-              message: errorMessage
-            })
-          };
-        }
-      }
+    if (!sport) {
+      sport = "N/A";
     }
-
-    // retrieving dash
-    let dashQuery = await sql.query`SELECT TOP 1 Events.Id, Events.Type, Events.[Date], FinalTime.Time AS 'FinalTime' FROM Events 
-    INNER JOIN FinalTime ON Events.Id = FinalTime.EventId 
-    LEFT JOIN SplitTime ON Events.Id = SplitTime.EventId 
-    WHERE Events.AthleteId = ${athleteID}
-    AND SplitTime.[Time] IS NULL
-    AND FinalTime.Distance = 10
-    AND Events.Type='Dash'
-	  ORDER BY CONVERT(varchar,Events.Date, 1) DESC, FinalTime.[Time] ASC`;
-
-    // if there is no dash
-    if (dashQuery.recordset.length === 0) {
-      sql.close();
-      return {
-        statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify({
-          message: "This athlete has not ran a 10 yard dash"
-        })
-      };
+    if (!position) {
+      position = "N/A";
     }
-
-    // retrieving proagility
-    let proAgilityQuery = await sql.query`SELECT TOP 1 * FROM Events
-    WHERE Events.[Type] = 'ProAgility'
-    AND Events.AthleteId=${athleteID}
-	  ORDER BY  CONVERT(varchar,Events.Date, 1) DESC, Events.FinalTime ASC;`;
-
-    // if there is no proagility
-    if (proAgilityQuery.recordset.length === 0) {
-      sql.close();
-      return {
-        statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify({
-          message: "This athlete has not ran a pro agility today"
-        })
-      };
+    if (sex !== "male" && sex !== "female") {
+      throw "not correct parameters";
     }
-
-    // retrieving vertical
-    let verticalQuery = await sql.query`SELECT TOP 1 * FROM Events 
-    WHERE Events.[Type] = 'Vertical' 
-    AND Events.AthleteId=${athleteID}
-    ORDER BY CONVERT(varchar,Events.Date, 1) DESC, Events.JumpDistance ASC;`;
-
-    // if there is no vertical
-    if (verticalQuery.recordset.length === 0) {
-      sql.close();
-      return {
-        statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify({
-          message: "This athlete has not done a vertical jump today"
-        })
-      };
-    }
-
-    sql.close();
-
-    // grab the event times
-    let ten = dashQuery.recordset[0].FinalTime;
-    let agility = proAgilityQuery.recordset[0].FinalTime;
-    let vert = verticalQuery.recordset[0].JumpDistance;
-    let [tenIndex, agilityIndex, vertIndex] = [0, 0, 0];
-
-    const {
-      name,
-      sport,
-      position,
-      birthDate,
-      weight,
-      wingSpan,
-      reach,
-      sex
-    } = athlete;
-
-    let feet = Math.floor(athlete["height"] / 12);
-    let inches = athlete["height"] - feet * 12;
-
-    // calculate index based on sex
-    if (sex.toLowerCase() === "male") {
-      [tenIndex, agilityIndex, vertIndex] = athleteindex.calculateMaleIndex(
-        weight,
-        ten,
-        agility,
-        vert
-      );
-    } else if (sex.toLowerCase() === "female") {
-      [tenIndex, agilityIndex, vertIndex] = athleteindex.calculateFemaleIndex(
-        weight,
-        ten,
-        agility,
-        vert
-      );
-    } else {
-      sql.close();
-      return {
-        statusCode: 400,
-        headers: {
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify({
-          message: "Gender can only be male or female"
-        })
-      };
-    }
-
-    let overallIndex = tenIndex + agilityIndex + vertIndex;
-
-    if (overallIndex > 600) {
-      overallIndex = 600;
-    }
-
-    // data for template
-    const data = {
-      name: name,
-      sport: sport,
-      position: position,
-      age: birthDate,
-      feet: feet,
-      inches: inches,
-      weight: weight,
-      wingSpan: wingSpan,
-      reach: reach,
-      ten: ten,
-      agility: agility,
-      vert: vert,
-      tenIndex: tenIndex,
-      agilityIndex: agilityIndex,
-      vertIndex: vertIndex,
-      overallIndex: overallIndex
-    };
-
-    // inject data into tempalte
-    const template = handlebars.compile(html.source, { strict: true });
-    const result = template(data);
-
-    // write report html to tmp folder
-    fs.writeFileSync("/tmp/report.html", result);
-
-    // generate pdf from report html
-    let browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless
-    });
-
-    const page = await browser.newPage();
-    await page.setViewport({ width: 800, height: 600, deviceScaleFactor: 3 });
-
-    await page.goto("file:///tmp/report.html", {
-      waitUntil: "networkidle0"
-    });
-
-    const buffer = await page.pdf({ format: "A4" });
-
-    let response = {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-type": "application/pdf"
-      },
-      body: buffer.toString("base64"),
-      isBase64Encoded: true
-    };
-
-    return response;
   } catch (err) {
-    // report error if there is one
-    console.log(err);
-    sql.close();
     return {
-      statusCode: 500,
+      statusCode: 400,
       headers: {
         "Access-Control-Allow-Origin": "*"
       },
       body: JSON.stringify({
-        message: err.message
+        message: "You do not have the correct body parameters"
       })
     };
   }
+
+  // set time to 0 to compare dates
+  testingDate.setHours(0, 0, 0, 0);
+  dashTimeStamp.setHours(0, 0, 0, 0);
+  proAgilityTimeStamp.setHours(0, 0, 0, 0);
+  verticalTimeStamp.setHours(0, 0, 0, 0);
+
+  // calculate height and age
+  let age = calculate_age(birthDate);
+  let name = `${firstName} ${middleName} ${lastName}`;
+  let feet = Math.floor(height / 12);
+  let inches = height - feet * 12;
+
+  // check to see if the events match the testing date, if not then label it on the report
+  if (testingDate.getTime() !== dashTimeStamp.getTime()) {
+    dashTimeStamp = `(${dateTimeStamp.toDateString()})`;
+  } else {
+    dashTimeStamp = "";
+  }
+
+  if (testingDate.getTime() !== proAgilityTimeStamp.getTime()) {
+    proAgilityTimeStamp = `(${proAgilityTimeStamp.toDateString()})`;
+  } else {
+    proAgilityTimeStamp = "";
+  }
+
+  if (testingDate.getTime() !== verticalTimeStamp.getTime()) {
+    verticalTimeStamp = `(${verticalTimeStamp.toDateString()})`;
+  } else {
+    verticalTimeStamp = "";
+  }
+
+  const data = {
+    name: name,
+    sport: sport,
+    position: position,
+    age: age,
+    feet: feet,
+    inches: inches,
+    weight: weight,
+    wingSpan: wingSpan,
+    reach: reach,
+    ten: dash,
+    agility: proAgility,
+    vert: vertical,
+    tenIndex: tenIndex,
+    agilityIndex: agilityIndex,
+    vertIndex: vertIndex,
+    overallIndex: overallIndex,
+    testingDate: testingDate.toDateString(),
+    dashTimeStamp: dashTimeStamp,
+    proAgilityTimeStamp: proAgilityTimeStamp,
+    verticalTimeStamp: verticalTimeStamp
+  };
+
+  // inject data into tempalte
+  const template = handlebars.compile(html.source, { strict: true });
+  const result = template(data);
+
+  // write report html to tmp folder ( AWS Lambda )
+  fs.writeFileSync("/tmp/report.html", result);
+
+  // generate pdf from report html
+  let browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless
+  });
+
+  const page = await browser.newPage();
+  await page.setViewport({ width: 800, height: 600, deviceScaleFactor: 3 });
+  await page.goto("file:///tmp/report.html", {
+    waitUntil: "networkidle0"
+  });
+
+  const buffer = await page.pdf({ format: "A4" });
+
+  let response = {
+    statusCode: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Content-type": "application/pdf"
+    },
+    body: buffer.toString("base64"),
+    isBase64Encoded: true
+  };
+  return response;
 };
+
+function calculate_age(dob) {
+  var diff_ms = Date.now() - dob.getTime();
+  var age_dt = new Date(diff_ms);
+
+  return Math.abs(age_dt.getUTCFullYear() - 1970);
+}

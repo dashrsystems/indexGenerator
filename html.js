@@ -48,6 +48,11 @@ const source = `<!DOCTYPE html>
         font-size: 36px !important;
       }
 
+      .testingDate {
+        text-align: center !important;
+        font-size: 15px !important;
+      }
+
       .heading-container {
         display: flex;
         flex-direction: row;
@@ -114,6 +119,7 @@ const source = `<!DOCTYPE html>
     </div>
     <hr />
     <div class="title name">{{name}}</div>
+    <div class="title testingDate">Testing Date: {{testingDate}}</div>
     <div class="columns is-multiline">
       <div class="column">
         <div class="box notification is-primary event test">
@@ -142,21 +148,21 @@ const source = `<!DOCTYPE html>
     <div class="columns is-multiline">
       <div class="column">
         <div class="box notification is-primary event test">
-          <div class="heading">Vertical</div>
+          <div class="heading">Vertical {{verticalTimeStamp}}</div>
           <div class="title event-stat">{{vert}} IN.</div>
           <div class="heading previous-index">INDEX: {{vertIndex}}</div>
         </div>
       </div>
       <div class="column">
         <div class="box notification is-warning event test">
-          <div class="heading">Pro-Agility</div>
+          <div class="heading">Pro-Agility  {{proAgilityTimeStamp}}</div>
           <div class="title event-stat">{{agility}} SEC</div>
           <div class="heading previous-index">INDEX: {{agilityIndex}}</div>
         </div>
       </div>
       <div class="column">
         <div class="box notification is-info event test">
-          <div class="heading">10 Yard Dash</div>
+          <div class="heading">10 Yard Dash  {{dashTimeStamp}}</div>
           <div class="title event-stat">{{ten}} SEC</div>
           <div class="heading previous-index">INDEX: {{tenIndex}}</div>
         </div>

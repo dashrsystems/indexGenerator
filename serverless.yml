@@ -31,8 +31,9 @@ functions:
     events:
       - http:
           path: api/index/{athleteID}
-          cors: true
-          method: get
+          method: post
+          cors:
+            origin: "*"
           request:
             parameters:
               paths:
