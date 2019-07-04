@@ -111,7 +111,7 @@ export const index = async (event, context) => {
 
   // check to see if the events match the testing date, if not then label it on the report
   if (testingDate.getTime() !== dashTimeStamp.getTime()) {
-    dashTimeStamp = `(${dateTimeStamp.toDateString()})`;
+    dashTimeStamp = `(${dashTimeStamp.toDateString()})`;
   } else {
     dashTimeStamp = "";
   }
