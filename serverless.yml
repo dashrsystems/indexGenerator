@@ -38,3 +38,11 @@ functions:
             parameters:
               paths:
                 athleteID: true
+  team_report:
+    handler: handler.team_report
+    events:
+      - http:
+          path: api/team_report
+          method: post
+          cors:
+            origin: "*"
